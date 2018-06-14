@@ -1,4 +1,5 @@
 # %%
+import sys
 import os
 import math
 import random
@@ -28,35 +29,43 @@ sess = tf.InteractiveSession(config=config)
 vocab = Vocabulary()
 
 with tf.name_scope(None, 'input_image'):
-    img_input = tf.placeholder(tf.uint8, shape=(32, 100, 3))
+    img_input = tf.placeholder(tf.uint8, shape=(32, None, 3))
     image = tf.to_float(img_input)
     image = tf.expand_dims(image, 0)
 
 model = crnn.CRNN(256, 37, 'train')
 logit = model.build(image)
 
+# print(logit.get_shape().as_list())
+# print(tf.shape(logit)[0])
+# sys.exit()
+
 decodes, _ = tf.nn.ctc_beam_search_decoder(inputs=logit,
-                                           sequence_length=25*np.ones(1),
+                                           sequence_length=tf.shape(
+                                               logit)[0]*np.ones(1),
                                            merge_repeated=False
                                            )
 pred = tf.sparse_tensor_to_dense(decodes[0])
 
 # %% 模型恢复
-save_path = './log/checkpoints/model.ckpt-11002'
+# model_variables = slim.get_model_variables('CRNN/LSTM')
+save_path = './log/checkpoints/model.ckpt-10223'
 saver = tf.train.Saver()
 
 saver.restore(sess, save_path=save_path)
 
 # %% inference
 
-image_path = './data/sim_sub_15w/0_0_27HJF30FRY.jpg'
+# image_path = './data/sim_sub_15w/0_0_C8MJ4Z58IN.jpg'
+image_path = './data/allSubUni/10261325T716C6SS0267.jpg'
 
 with sess.as_default():
 
     inputdata = cv2.imread(image_path, cv2.IMREAD_COLOR)
-    #scale = 32.0 / inputdata.shape[0]
-    #width = max(0 , scale * inputdata.shape[1])
-    inputdata = cv2.resize(inputdata, (100, 32))
+    scale = 32.0 / inputdata.shape[0]
+    width = int(max(0, scale * inputdata.shape[1]))
+    print(width)
+    inputdata = cv2.resize(inputdata, (width, 32))
 
     out = sess.run(pred, feed_dict={img_input: inputdata})
 
