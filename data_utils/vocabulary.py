@@ -8,6 +8,8 @@ import numpy as np
 
 
 class Vocabulary(object):
+    """字典构建
+    """
 
     def __init__(self):
         self.base_num = 2
@@ -53,3 +55,32 @@ class Vocabulary(object):
         for s in v:
             strs += self.id_to_letter(s)
         return strs
+
+
+def compute_acuracy(preds, gt_labels):
+    """ 计算字符匹配准确度
+    """
+    accuracy = []
+    length = preds.shape[0]
+
+    for index, gt_label in enumerate(gt_labels):
+        pred = preds[index]
+        totol_count = len(gt_label)
+        correct_count = 0
+        try:
+            for i, tmp in enumerate(gt_label):
+                if tmp == pred[i]:
+                    correct_count += 1
+        except IndexError:
+            continue
+        finally:
+            try:
+                accuracy.append(correct_count / totol_count)
+            except ZeroDivisionError:
+                if len(pred) == 0:
+                    accuracy.append(1)
+                else:
+                    accuracy.append(0)
+    accuracy = np.mean(np.array(accuracy).astype(np.float32), axis=0)
+
+    return accuracy

@@ -10,7 +10,7 @@ import numpy as np
 
 from model import configuration, crnn
 from data_utils.DataIO import DataReader
-from data_utils.vocabulary import Vocabulary
+from data_utils.vocabulary import Vocabulary, compute_acuracy
 
 slim = tf.contrib.slim
 
@@ -23,7 +23,7 @@ tf.flags.DEFINE_string(
 
 tf.flags.DEFINE_string(
     "file_pattern", "",
-    "File pattern of sharded TFRecord input files."
+    "File pattern."
 )
 
 tf.flags.DEFINE_string(
@@ -96,6 +96,7 @@ def main(_):
     input_queue = DataReader(FLAGS.dataset_dir, FLAGS.file_pattern,
                              model_config, batch_size=batch_size)
 
+
     g = tf.Graph()
     with g.as_default():
         # 数据队列
@@ -107,7 +108,6 @@ def main(_):
         logits = model.build(input_images)
 
         with tf.name_scope(None, 'loss'):
-            shape_print = tf.shape('logits')
             loss = tf.reduce_mean(
                 tf.nn.ctc_loss(
                     labels=input_labels,
@@ -167,7 +167,7 @@ def main(_):
         tf.summary.scalar(name='Seq_Dist', tensor=sequence_dist)
         tf.summary.scalar(name='global_step', tensor=global_step)
         tf.summary.scalar(name='learning_rate', tensor=learning_rate)
-        tf.summary.scalar(name='loss', tensor=total_loss)
+        tf.summary.scalar(name='total_loss', tensor=total_loss)
 
         # global/secs hook
         globalhook = tf.train.StepCounterHook(
@@ -192,7 +192,6 @@ def main(_):
             'global_step': global_step,
             'loss': loss,
             'Seq_Dist': sequence_dist,
-            'shape':shape_print,
             # 'accurays':accurays,
         }
         loghook = tf.train.LoggingTensorHook(
@@ -225,10 +224,10 @@ def main(_):
             save_checkpoint_secs=180,
             save_summaries_steps=100,
             config=session_config) as sess:
-
             while not sess.should_stop():
-                print(sess.run([shape_print]))
-                sess.run(train_op)
+                oloss, opreds, ogt_labels = sess.run([train_op, preds, gt_labels])
+                accuray = compute_acuracy(opreds, ogt_labels)
+                print("accuracy: %9f" % (accuray))
 
         # tf.contrib.training.train(
         #     train_op,
