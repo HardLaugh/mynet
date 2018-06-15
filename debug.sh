@@ -15,5 +15,5 @@ python train.py \
     --summaries_dir=${SD} \
     --log_every_n_steps=60 \
     --number_of_steps=40000 \
-    --batch_size=16 \
+    --batch_size=32 \
     --learning_rate=0.1

@@ -47,4 +47,5 @@ def crnn_base(inputs,
             net = slim.max_pool2d(net, [2, 1], stride=[2, 1], scope='pool4')
             net = slim.conv2d(net, 512, [2, 2], [2, 1], scope='conv7')
 
+
     return net
