@@ -50,14 +50,14 @@ pred = tf.sparse_tensor_to_dense(decodes[0])
 
 # 模型恢复
 # model_variables = slim.get_model_variables('CRNN/LSTM')
-save_path = './log/checkpoints/model.ckpt-18500'
+save_path = '../log/checkpoints/model.ckpt-18500'
 saver = tf.train.Saver()
 
 saver.restore(sess, save_path=save_path)
 
 # %% inference
 # path = './data/sim_sub_15w/'
-path = './data/allSubUni/'
+path = '../data/allSubUni/'
 imagefile = os.listdir(path)[23 ]
 imagefile = os.path.join(path, imagefile)
 

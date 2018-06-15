@@ -21,7 +21,7 @@ gpu_options = tf.GPUOptions(allow_growth=True)
 session_config = tf.ConfigProto(
     log_device_placement=False, gpu_options=gpu_options)
 
-DATASET_DIR = './data/output/'
+DATASET_DIR = '../data/output/'
 FP = 'ocr_train_*.tfrecord'
 model_config = configuration.ModelConfig()
 
