@@ -41,15 +41,15 @@ def _bytes_feature_list(values):
 #     color_ordering = random.randint(0, 99) % 2
 #     with tf.name_scope("distort_color", values=[image]):
 #         if color_ordering == 0:
-#         image = tf.image.random_brightness(image, max_delta=32. / 255.)
-#         image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
-#         image = tf.image.random_hue(image, max_delta=0.032)
-#         image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
+#             image = tf.image.random_brightness(image, max_delta=32. / 255.)
+#             image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
+#             image = tf.image.random_hue(image, max_delta=0.032)
+#             image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
 #         elif color_ordering == 1:
-#         image = tf.image.random_brightness(image, max_delta=32. / 255.)
-#         image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
-#         image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
-#         image = tf.image.random_hue(image, max_delta=0.032)
+#             image = tf.image.random_brightness(image, max_delta=32. / 255.)
+#             image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
+#             image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
+#             image = tf.image.random_hue(image, max_delta=0.032)
 
 #     # The random_* ops do not necessarily clamp.
 #     image = tf.clip_by_value(image, 0.0, 1.0)
@@ -58,7 +58,7 @@ def _bytes_feature_list(values):
 
 class DataReader(object):
 
-    def __init__(self, dataset_dir, file_pattern, modelconifg, batch_size=32):
+    def __init__(self, dataset_dir, file_pattern, modelconifg, batch_size=32, mode='train'):
 
         self.modelconfig = modelconifg
 
@@ -66,14 +66,19 @@ class DataReader(object):
         self.file_pattern = file_pattern
         self.image_format = 'jpeg'
         self.batch_size = batch_size
+        self.mode = mode
+
+    def is_training(self):
+        return self.mode == 'train'
 
     def read(self):
+
+        batch_size = self.batch_size
 
         def queue_iterator():
 
             Height = self.modelconfig.image_height
             Width = self.modelconfig.image_width
-            batch_size = self.batch_size
 
             data_files = []
             for pattern in self.file_pattern.split(","):
@@ -112,6 +117,31 @@ class DataReader(object):
 
                 return encoded_image, caption
 
+            def _distort_image(image):
+
+                color_ordering = random.randint(0, 99) % 2
+                with tf.name_scope("distort_color", values=[image]):
+                    if color_ordering == 0:
+                        image = tf.image.random_brightness(
+                            image, max_delta=1.5)
+                        image = tf.image.random_saturation(
+                            image, lower=0.5, upper=1.5)
+                        image = tf.image.random_hue(image, max_delta=0.4)
+                        image = tf.image.random_contrast(
+                            image, lower=0.5, upper=1.5)
+                    elif color_ordering == 1:
+                        image = tf.image.random_brightness(image, max_delta=1)
+                        image = tf.image.random_contrast(
+                            image, lower=0.5, upper=1.5)
+                        image = tf.image.random_saturation(
+                            image, lower=0.5, upper=1.5)
+                        image = tf.image.random_hue(image, max_delta=0.4)
+
+                # The random_* ops do not necessarily clamp.
+                # image = tf.clip_by_value(image, 0.0, 1.0)
+
+                return image
+
             def _process_image(encoded_image, caption):
                 """图片预处理.
 
@@ -133,9 +163,10 @@ class DataReader(object):
                                                size=[Height, Width],
                                                method=tf.image.ResizeMethod.BILINEAR)
 
+                if self.is_training():
+                    image = _distort_image(image)
+
                 image = tf.image.convert_image_dtype(image, dtype=tf.float32)
-                # if is_training:
-                #     image = _distort_image(image)
 
                 # Rescale to [-1,1] instead of [0, 1]
                 image = tf.subtract(image, 0.5)
@@ -148,8 +179,8 @@ class DataReader(object):
             dataset = dataset.map(_parse_single_example)
             dataset = dataset.map(_process_image)
 
-            dataset = dataset.batch(batch_size)
-            dataset = dataset.shuffle(buffer_size=3000)
+            # dataset = dataset.batch(batch_size)
+            # dataset = dataset.shuffle(buffer_size=3000)
             dataset = dataset.repeat()
 
             iterator = dataset.make_one_shot_iterator()
@@ -158,6 +189,14 @@ class DataReader(object):
             return queue
 
         images, input_labels = queue_iterator()
+        #直接用dataset的batch 反而会在训练过程中出现莫名batch_size不对的情况，导致报错
+        #故改用shuffle_batch的方式
+        images, input_labels = tf.train.shuffle_batch(
+            [images, input_labels],
+            batch_size,
+            capacity=3000,
+            min_after_dequeue=batch_size*2
+        )
 
         return images, input_labels
 

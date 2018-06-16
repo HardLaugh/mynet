@@ -2,10 +2,10 @@
 set -e
 
 echo "train:............."
-DATASET_DIR=./data/output/
+DATASET_DIR=../data/output/
 FP=ocr_train_*.tfrecord
-TC=./log/checkpoints/
-SD=./log/summaries/
+TC=../log/checkpoints/
+SD=../log/summaries/
 #CHECKPOINT_PATH=None
 
 python train.py \
@@ -15,5 +15,5 @@ python train.py \
     --summaries_dir=${SD} \
     --log_every_n_steps=60 \
     --number_of_steps=40000 \
-    --batch_size=16 \
+    --batch_size=32 \
     --learning_rate=0.1
