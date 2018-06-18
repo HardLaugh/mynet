@@ -67,7 +67,7 @@ def main(_):
 
     assert FLAGS.file_pattern, "--file_pattern is required"
     assert FLAGS.train_checkpoints, "--train_checkpoints is required"
-    assert FLAGS.summaries_dir, "--summaries_dir is required"
+    # assert FLAGS.summaries_dir, "--summaries_dir is required"
 
     vocab = Vocabulary()
 
@@ -82,10 +82,10 @@ def main(_):
     batch_size = FLAGS.batch_size
     
 
-    summaries_dir = FLAGS.summaries_dir
-    if not tf.gfile.IsDirectory(summaries_dir):
-        tf.logging.info("Creating training directory: %s", summaries_dir)
-        tf.gfile.MakeDirs(summaries_dir)
+    # summaries_dir = FLAGS.summaries_dir
+    # if not tf.gfile.IsDirectory(summaries_dir):
+    #     tf.logging.info("Creating training directory: %s", summaries_dir)
+    #     tf.gfile.MakeDirs(summaries_dir)
 
     train_checkpoints = FLAGS.train_checkpoints
     if not tf.gfile.IsDirectory(train_checkpoints):
@@ -106,6 +106,8 @@ def main(_):
         # 模型建立
         model = crnn.CRNN(256, model_config.num_classes, 'train')
         logits = model.build(input_images)
+        #为避免Dataset.batch的不确定提供，改为动态获取batch_size
+        dyn_batch_size = tf.shape(logits)[1]
 
         with tf.name_scope(None, 'loss'):
             loss = tf.reduce_mean(
@@ -113,7 +115,7 @@ def main(_):
                     labels=input_labels,
                     inputs=logits,
                     sequence_length=sequence_length *
-                    tf.ones(batch_size, dtype=tf.int32)
+                    tf.ones(dyn_batch_size, dtype=tf.int32)
                 ),
                 name='compute_loss',
             )
@@ -123,7 +125,7 @@ def main(_):
         with tf.name_scope(None, 'decoder'):
             decoded, _ = tf.nn.ctc_beam_search_decoder(
                 logits,
-                sequence_length*tf.ones(batch_size, dtype=tf.int32),
+                sequence_length*tf.ones(dyn_batch_size, dtype=tf.int32),
                 merge_repeated=False,
             )
             with tf.name_scope(None, 'acurracy'):
@@ -192,6 +194,7 @@ def main(_):
             'global_step': global_step,
             'loss': loss,
             'Seq_Dist': sequence_dist,
+            'LR':learning_rate,
             # 'accurays':accurays,
         }
         loghook = tf.train.LoggingTensorHook(

@@ -32,9 +32,9 @@ class TrainingConfig(object):
 
         self.optimizer = "adadelta"
 
-        self.initial_learning_rate = 0.1
-        self.learning_rate_decay_factor = 0.1
-        self.learning_decay_steps = 10000
+        self.initial_learning_rate = 0.01
+        self.learning_rate_decay_factor = 0.01
+        self.learning_decay_steps = 30000
 
         self.clip_gradients = None
 

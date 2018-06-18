@@ -59,7 +59,7 @@ class CRNN(object):
                     cells_bw=bw_cell_list,
                     inputs=image_embeddings,
                     dtype=tf.float32
-                )  # [batch,25, 512*2]
+                )  # [batch,25, 256*2]
 
                 lstm_outputs = tf.layers.dropout(
                     inputs=lstm_outputs,

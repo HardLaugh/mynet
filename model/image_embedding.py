@@ -29,23 +29,22 @@ def crnn_base(inputs,
             net = slim.conv2d(net, 128, [3, 3], 1, scope='conv2')
             net = slim.max_pool2d(net, [2, 2], 2, scope='pool2')
 
-            net = slim.conv2d(net, 256, [3, 3], 1, scope='conv3')
+            net = slim.conv2d(net, 256, [3, 3], 1, activation_fn=None, scope='conv3')
+            net = slim.batch_norm(net, is_training=is_training, scope='Bn1')
             net = slim.conv2d(net, 256, [3, 3], 1, scope='conv4')
 
             net = slim.max_pool2d(net, [2, 1], stride=[2, 1], scope='pool3')
+            
 
-            net = slim.conv2d(net, 512, [3, 3], 1, scope='conv5')
-
-            net = slim.batch_norm(net, activation_fn=None,
-                                  is_training=is_training, scope='Bn1')
+            net = slim.conv2d(net, 512, [3, 3], 1, activation_fn=None, scope='conv5')
+            net = slim.batch_norm(net, is_training=is_training, scope='Bn2')
 
             net = slim.conv2d(net, 512, [3, 3], 1, scope='conv6')
 
-            net = slim.batch_norm(net, activation_fn=None,
-                                  is_training=is_training, scope='Bn2')
-
             net = slim.max_pool2d(net, [2, 1], stride=[2, 1], scope='pool4')
-            net = slim.conv2d(net, 512, [2, 2], [2, 1], scope='conv7')
+            
+            net = slim.conv2d(net, 512, [2, 2], [2, 1], activation_fn=None, scope='conv7')
+            net = slim.batch_norm(net, is_training=is_training, scope='Bn3')
 
 
     return net

@@ -9,6 +9,8 @@ import random
 import tensorflow as tf
 from collections import namedtuple
 
+from tensorflow.python.ops import control_flow_ops
+
 
 def _int64_feature(value):
     if not isinstance(value, list):
@@ -55,6 +57,26 @@ def _bytes_feature_list(values):
 #     image = tf.clip_by_value(image, 0.0, 1.0)
 
 #     return image
+
+
+
+def apply_with_random_selector(x, func, num_cases):
+    """Computes func(x, sel), with sel sampled from [0...num_cases-1].
+
+    Args:
+        x: input Tensor.
+        func: Python function to apply.
+        num_cases: Python int32, number of cases to sample sel from.
+
+    Returns:
+        The result of func(x, sel), where func receives the value of the
+        selector as a python integer, but sel is sampled dynamically.
+    """
+    sel = tf.random_uniform([], maxval=num_cases, dtype=tf.int32)
+    # Pass the real x only to one of the func calls.
+    return control_flow_ops.merge([
+            func(control_flow_ops.switch(x, tf.equal(sel, case))[1], case)
+            for case in range(num_cases)])[0]
 
 class DataReader(object):
 
@@ -117,25 +139,50 @@ class DataReader(object):
 
                 return encoded_image, caption
 
-            def _distort_image(image):
+            def _distort_image(image, color_ordering=0):
 
-                color_ordering = random.randint(0, 99) % 2
+                random_uniform_width = random.randint(0, 30)
+                random_uniform_height = random.randint(0, 30)
+                random_tw = random.randint(0, random_uniform_width)
+                random_th = random.randint(0, random_uniform_height)
+
+                random_constant = random.uniform(0, 0.99)
+                random_angle = random.uniform(-0.05, 0.05)
+
+                image = tf.pad(image, 
+                            [[0, random_uniform_height], [0, random_uniform_width], [0, 0]],
+                             mode='CONSTANT',
+                             name = None,
+                             constant_values=random_constant,
+                        )
+                
                 with tf.name_scope("distort_color", values=[image]):
                     if color_ordering == 0:
-                        image = tf.image.random_brightness(
-                            image, max_delta=1.5)
-                        image = tf.image.random_saturation(
-                            image, lower=0.5, upper=1.5)
-                        image = tf.image.random_hue(image, max_delta=0.4)
-                        image = tf.image.random_contrast(
-                            image, lower=0.5, upper=1.5)
+                        image = tf.image.random_brightness(image, max_delta=32. / 255.)
+                        image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
+                        image = tf.image.random_hue(image, max_delta=0.032)
+                        image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
+                        image = tf.clip_by_value(image, 0.0, 1.0)
+
+                        angle = tf.contrib.image.angles_to_projective_transforms(
+                            random_angle,
+                            50, 500)
+                        image = tf.contrib.image.transform(image, angle, "BILINEAR")
+
                     elif color_ordering == 1:
-                        image = tf.image.random_brightness(image, max_delta=1)
-                        image = tf.image.random_contrast(
-                            image, lower=0.5, upper=1.5)
-                        image = tf.image.random_saturation(
-                            image, lower=0.5, upper=1.5)
-                        image = tf.image.random_hue(image, max_delta=0.4)
+                        # random_tw = tf.random_uniform([], 0, random_uniform_width, tf.int32)
+                        # random_th = tf.random_uniform([], 0, random_uniform_height, tf.int32)
+
+                        image = tf.image.random_brightness(image, max_delta=32. / 255.)
+                        image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
+                        image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
+                        image = tf.image.random_hue(image, max_delta=0.032)
+                        image = tf.clip_by_value(image, 0.0, 1.0)
+                        
+                        image = tf.contrib.image.translate(image, [random_tw, random_th], "BILINEAR")
+                        
+                    else:
+                         raise ValueError('color_ordering must be in [0, 1]')
 
                 # The random_* ops do not necessarily clamp.
                 # image = tf.clip_by_value(image, 0.0, 1.0)
@@ -158,19 +205,27 @@ class DataReader(object):
                 else:
                     raise ValueError("Invalid image format: %s" %
                                      self.image_format)
+                image = tf.image.convert_image_dtype(image, dtype=tf.float32)
 
+                # image = tf.image.resize_images(image,
+                #                                size=[Height, Width],
+                #                                method=tf.image.ResizeMethod.BILINEAR)
+                
+
+                if self.is_training():
+                    image = apply_with_random_selector(
+                                    image,
+                                    lambda x, ordering: _distort_image(x, ordering),
+                                    num_cases=2
+                    )
                 image = tf.image.resize_images(image,
                                                size=[Height, Width],
                                                method=tf.image.ResizeMethod.BILINEAR)
-
-                if self.is_training():
-                    image = _distort_image(image)
-
-                image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+                image = tf.image.convert_image_dtype(image, dtype=tf.uint8, saturate=True)
 
                 # Rescale to [-1,1] instead of [0, 1]
-                image = tf.subtract(image, 0.5)
-                image = tf.multiply(image, 2.0)
+                # image = tf.subtract(image, 0.5)
+                # image = tf.multiply(image, 2.0)
 
                 caption = tf.to_int32(caption)
 
@@ -178,9 +233,10 @@ class DataReader(object):
 
             dataset = dataset.map(_parse_single_example)
             dataset = dataset.map(_process_image)
-
-            # dataset = dataset.batch(batch_size)
-            # dataset = dataset.shuffle(buffer_size=3000)
+            
+            #如果数据集N不是batch_size的倍数，最后的批次将会是N%batch_size
+            dataset = dataset.batch(batch_size)
+            dataset = dataset.shuffle(buffer_size=512)
             dataset = dataset.repeat()
 
             iterator = dataset.make_one_shot_iterator()
@@ -189,14 +245,15 @@ class DataReader(object):
             return queue
 
         images, input_labels = queue_iterator()
-        #直接用dataset的batch 反而会在训练过程中出现莫名batch_size不对的情况，导致报错
-        #故改用shuffle_batch的方式
-        images, input_labels = tf.train.shuffle_batch(
-            [images, input_labels],
-            batch_size,
-            capacity=3000,
-            min_after_dequeue=batch_size*2
-        )
+        # 直接用dataset的batch 反而会在训练过程中出现batch_size不对的情况，导致报错
+        # 故可改用shuffle_batch的方式
+        # images, input_labels = tf.train.shuffle_batch(
+        #     [images, input_labels],
+        #     batch_size,
+        #     enqueue_many=True,
+        #     capacity=25000,
+        #     min_after_dequeue=batch_size*5
+        # )
 
         return images, input_labels
 
