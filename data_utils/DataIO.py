@@ -235,27 +235,18 @@ class DataReader(object):
             dataset = dataset.map(_process_image)
             
             #如果数据集N不是batch_size的倍数，最后的批次将会是N%batch_size
-            dataset = dataset.batch(batch_size)
-            dataset = dataset.shuffle(buffer_size=256)
-            dataset = dataset.repeat()
+            dataset = dataset.shuffle(256).repeat().batch(batch_size)
 
-            iterator = dataset.make_one_shot_iterator()
-            queue = iterator.get_next()
-
-            return queue
+            return dataset.make_one_shot_iterator().get_next()
 
         images, input_labels = queue_iterator()
-        # 直接用dataset的batch 反而会在训练过程中出现batch_size不对的情况，导致报错
-        # 故可改用shuffle_batch的方式
-        # images, input_labels = tf.train.shuffle_batch(
-        #     [images, input_labels],
-        #     batch_size,
-        #     enqueue_many=True,
-        #     capacity=25000,
-        #     min_after_dequeue=batch_size*5
-        # )
 
         return images, input_labels
+
+    def input_fn(self):
+        """输入函数，适配estimator
+        """
+        return self.read()
 
 
 class DataWriter(object):
