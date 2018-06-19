@@ -34,7 +34,7 @@ class TrainingConfig(object):
 
         self.initial_learning_rate = 0.01
         self.learning_rate_decay_factor = 0.01
-        self.learning_decay_steps = 30000
+        self.learning_decay_steps = 40000
 
         self.clip_gradients = None
 

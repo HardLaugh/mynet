@@ -221,11 +221,11 @@ class DataReader(object):
                 image = tf.image.resize_images(image,
                                                size=[Height, Width],
                                                method=tf.image.ResizeMethod.BILINEAR)
-                image = tf.image.convert_image_dtype(image, dtype=tf.uint8, saturate=True)
+                # image = tf.image.convert_image_dtype(image, dtype=tf.uint8, saturate=True)
 
                 # Rescale to [-1,1] instead of [0, 1]
-                # image = tf.subtract(image, 0.5)
-                # image = tf.multiply(image, 2.0)
+                image = tf.subtract(image, 0.5)
+                image = tf.multiply(image, 2.0)
 
                 caption = tf.to_int32(caption)
 
@@ -236,7 +236,7 @@ class DataReader(object):
             
             #如果数据集N不是batch_size的倍数，最后的批次将会是N%batch_size
             dataset = dataset.batch(batch_size)
-            dataset = dataset.shuffle(buffer_size=512)
+            dataset = dataset.shuffle(buffer_size=256)
             dataset = dataset.repeat()
 
             iterator = dataset.make_one_shot_iterator()
