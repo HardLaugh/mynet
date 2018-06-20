@@ -4,8 +4,8 @@ from __future__ import print_function
 
 import sys
 import tensorflow as tf
-from tensorflow.python.estimator import estimator
 from model.image_embedding import crnn_base
+from tensorflow.python.estimator import estimator
 
 slim = tf.contrib.slim
 
@@ -83,17 +83,12 @@ def crnn_fn(features, labels, mode, params):
     lstm_size = params['ModelConfig'].num_lstm_units
     sequence_length = params['ModelConfig'].sequence_length
     log_every_n_steps = params['log_every_n_steps']
-
     # 模型建立
     with tf.variable_scope('CRNN', reuse=tf.AUTO_REUSE):
 
         with tf.variable_scope("image_embedding"):
             image_embeddings = embedding_and_squeeze(features, is_training())
-        print(image_embeddings)
-        print(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))
-        sys.exit()
-        # print(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))
-        # sys.exit()
+
         with tf.variable_scope('LSTM'):
             logits = Bilstm(image_embeddings,
                             lstm_size=lstm_size, num_classes=num_classes,
@@ -104,7 +99,7 @@ def crnn_fn(features, labels, mode, params):
                 tf.GraphKeys.GLOBAL_VARIABLES, scope='CRNN/LSTM')
             for var in lstm_variables:
                 tf.add_to_collection(tf.GraphKeys.MODEL_VARIABLES, var)
-
+                
     dyn_batch_size = tf.shape(logits)[1]
     with tf.name_scope(None, 'decoder'):
         decoded, _ = tf.nn.ctc_beam_search_decoder(
@@ -233,3 +228,26 @@ class CRNN_test(estimator.Estimator):
         super(CRNN_test, self).__init__(
             model_fn=_model_fn, model_dir=model_dir, config=config,
             params=params, warm_start_from=None)
+
+# CRNN estimator
+# class CRNN_test(object):
+#     """CRNN estimator, for train, eval and predict
+#     """
+
+#     def __init__(self, model_dir, model_config, train_config, FLAGS, config=None):
+
+#         self.params = {'ModelConfig': model_config,
+#                        'TrainingConfig': train_config,
+#                        'log_every_n_steps': FLAGS.log_every_n_steps,
+#                        }
+#         self.model_dir = model_dir
+#         self.config = config
+
+#     def build(self):
+#         params = self.params
+
+#         def _model_fn(features, labels, mode, params):
+#             return crnn_fn(features, labels, mode, params)
+
+#         return tf.estimator.Estimator(model_fn=_model_fn, model_dir=self.model_dir, config=self.config,
+#                                       params=params, warm_start_from=None)

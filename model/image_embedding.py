@@ -15,7 +15,7 @@ def crnn_base(inputs,
               dropout_keep_prob=0.5,
               scope='cnn'):
 
-    with tf.variable_scope(None, 'cnn', [inputs]) as scope:
+    with tf.variable_scope('cnn', [inputs]) as scope:
         with slim.arg_scope([slim.conv2d, slim.fully_connected],
                             activation_fn=tf.nn.relu,
                             padding='SAME',
@@ -45,5 +45,7 @@ def crnn_base(inputs,
             
             net = slim.conv2d(net, 512, [2, 2], [2, 1], activation_fn=None, scope='conv7')
             net = slim.batch_norm(net, is_training=is_training, scope='Bn3')
-
+    # g = tf.get_default_graph()
+    # print(g.get_collection(tf.GraphKeys.GLOBAL_VARIABLES))
+    # sys.exit()
     return net

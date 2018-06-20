@@ -81,28 +81,39 @@ def main(_):
     model_config = configuration.ModelConfig()
 
     training_config = configuration.TrainingConfig()
-    
+
+    gpu_options = tf.GPUOptions(
+        per_process_gpu_memory_fraction=FLAGS.gpu_memory_fraction)
+    session_config = tf.ConfigProto(log_device_placement=False,
+                                    gpu_options=gpu_options)
+    config = tf.estimator.RunConfig(
+        model_dir=FLAGS.train_checkpoints,
+        tf_random_seed=407,
+        save_checkpoints_steps=180,
+        save_summary_steps=100,
+        session_config=session_config,
+        log_step_count_steps=FLAGS.log_every_n_steps,
+    )
+
     estimator = CRNNestimator.CRNN_test(
         model_dir=FLAGS.train_checkpoints,
         model_config=model_config,
         train_config=training_config,
         FLAGS=FLAGS,
+        config=config,
     )
-    # 数据队列初始化
-    train_queue = input_fn(FLAGS.dataset_dir, FLAGS.file_pattern,
-                                model_config, batch_size=FLAGS.batch_size)
 
-    eval_queue = input_fn(FLAGS.dataset_dir, 'ocr_val_*.tfrecord',
-                                model_config, batch_size=64)
-
+    # note: input_fn得确定在estimator内部建立，
     train_spec = tf.estimator.TrainSpec(
-        input_fn=lambda:train_queue,
+        input_fn=lambda: input_fn(FLAGS.dataset_dir, FLAGS.file_pattern,
+                                  model_config, batch_size=FLAGS.batch_size),
         max_steps=FLAGS.number_of_steps,
         hooks=None,
     )
 
     eval_spec = tf.estimator.EvalSpec(
-        input_fn=lambda:eval_queue,
+        input_fn=lambda: input_fn(FLAGS.dataset_dir, 'ocr_val_*.tfrecord',
+                                  model_config, batch_size=64),
         steps=30,
         throttle_secs=2,
     )
