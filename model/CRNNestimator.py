@@ -74,7 +74,29 @@ def Bilstm(image_embeddings, lstm_size, num_classes, is_training):
     return logits
 
 
-def crnn_fn(features, labels, mode, params):
+def crnn(features, lstm_size, num_classes, is_training=True):
+    """CRNN model
+    """
+    with tf.variable_scope('CRNN', reuse=tf.AUTO_REUSE):
+
+        with tf.variable_scope("image_embedding"):
+            image_embeddings = embedding_and_squeeze(features, is_training)
+
+        with tf.variable_scope('LSTM'):
+            logits = Bilstm(image_embeddings,
+                            lstm_size=lstm_size, num_classes=num_classes,
+                            is_training=is_training)
+        # 由于lstm不是slim库添加的，需要手动把lstm的模型变量添加到 GraphKeys.GLOBAL_VARIABLES
+        if not slim.get_model_variables('CRNN/LSTM'):
+            lstm_variables = tf.get_collection(
+                tf.GraphKeys.GLOBAL_VARIABLES, scope='CRNN/LSTM')
+            for var in lstm_variables:
+                tf.add_to_collection(tf.GraphKeys.MODEL_VARIABLES, var)
+
+    return logits
+
+
+def model_fn(features, labels, mode, params):
 
     def is_training():
         return mode == tf.estimator.ModeKeys.TRAIN
@@ -84,22 +106,11 @@ def crnn_fn(features, labels, mode, params):
     sequence_length = params['ModelConfig'].sequence_length
     log_every_n_steps = params['log_every_n_steps']
     # 模型建立
-    with tf.variable_scope('CRNN', reuse=tf.AUTO_REUSE):
+    logits = crnn(features,
+                  lstm_size,
+                  num_classes,
+                  is_training=is_training())
 
-        with tf.variable_scope("image_embedding"):
-            image_embeddings = embedding_and_squeeze(features, is_training())
-
-        with tf.variable_scope('LSTM'):
-            logits = Bilstm(image_embeddings,
-                            lstm_size=lstm_size, num_classes=num_classes,
-                            is_training=is_training())
-        # 把lstm的模型变量添加到 GraphKeys.GLOBAL_VARIABLES
-        if not slim.get_model_variables('CRNN/LSTM'):
-            lstm_variables = tf.get_collection(
-                tf.GraphKeys.GLOBAL_VARIABLES, scope='CRNN/LSTM')
-            for var in lstm_variables:
-                tf.add_to_collection(tf.GraphKeys.MODEL_VARIABLES, var)
-                
     dyn_batch_size = tf.shape(logits)[1]
     with tf.name_scope(None, 'decoder'):
         decoded, _ = tf.nn.ctc_beam_search_decoder(
@@ -139,8 +150,9 @@ def crnn_fn(features, labels, mode, params):
             ),
             name='compute_loss',
         )
-        tf.losses.add_loss(loss)
-        total_loss = tf.losses.get_total_loss(False)
+        # 不再需要手动添加到loss
+        # tf.losses.add_loss(loss)
+        # total_loss = tf.losses.get_total_loss(False)
 
     tf.summary.scalar(name='Seq_Dist', tensor=sequence_dist)
 
@@ -160,13 +172,9 @@ def crnn_fn(features, labels, mode, params):
 
     # Create training op.
     assert mode == tf.estimator.ModeKeys.TRAIN
-    global_step = tf.Variable(
-        initial_value=0,
-        name="global_step",
-        trainable=False,
-        collections=[tf.GraphKeys.GLOBAL_STEP,
-                     tf.GraphKeys.GLOBAL_VARIABLES]
-    )
+    # note:: 不再需要手动创建global_step
+    global_step = tf.train.get_global_step()
+    assert global_step.graph == tf.get_default_graph()
 
     start_learning_rate = params['TrainingConfig'].initial_learning_rate
     learning_rate = tf.train.exponential_decay(
@@ -181,11 +189,10 @@ def crnn_fn(features, labels, mode, params):
         tf.summary.histogram(variable.op.name, variable)
     tf.summary.scalar(name='global_step', tensor=global_step)
     tf.summary.scalar(name='learning_rate', tensor=learning_rate)
-    tf.summary.scalar(name='total_loss', tensor=total_loss)
 
     optimizer = tf.train.AdadeltaOptimizer(learning_rate=learning_rate)
     train_op = tf.contrib.training.create_train_op(
-        total_loss=total_loss,
+        total_loss=loss,
         optimizer=optimizer,
         global_step=global_step
     )
@@ -193,14 +200,13 @@ def crnn_fn(features, labels, mode, params):
     globalhook = tf.train.StepCounterHook(
         every_n_steps=log_every_n_steps,
     )
-    tensors_print = {
-        'global_step': global_step,
-        'loss': loss,
-        'Seq_Dist': sequence_dist,
-        'LR': learning_rate,
-    }
     loghook = tf.train.LoggingTensorHook(
-        tensors=tensors_print,
+        tensors={
+            # 'global_step': global_step,
+            # 'loss': loss,
+            'Seq_Dist': sequence_dist,
+            'LR': learning_rate,
+        },
         every_n_iter=log_every_n_steps,
     )
     return tf.estimator.EstimatorSpec(mode,
@@ -223,7 +229,7 @@ class CRNN_test(estimator.Estimator):
 
         def _model_fn(features, labels, mode, params):
 
-            return crnn_fn(features, labels, mode, params)
+            return model_fn(features, labels, mode, params)
 
         super(CRNN_test, self).__init__(
             model_fn=_model_fn, model_dir=model_dir, config=config,
