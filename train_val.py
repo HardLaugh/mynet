@@ -107,15 +107,15 @@ def main(_):
     train_spec = tf.estimator.TrainSpec(
         input_fn=lambda: input_fn(FLAGS.dataset_dir, FLAGS.file_pattern,
                                   model_config, batch_size=FLAGS.batch_size),
-        max_steps=FLAGS.number_of_steps,
+        max_steps=FLAGS.number_of_steps,#训练的最大次数
         hooks=None,
     )
 
     eval_spec = tf.estimator.EvalSpec(
         input_fn=lambda: input_fn(FLAGS.dataset_dir, 'ocr_val_*.tfrecord',
                                   model_config, batch_size=64),
-        steps=30,
-        throttle_secs=2,
+        steps=30,#每运行一次eval会触发30次batch_size
+        throttle_secs=200,#每20sec触发一次eval
     )
 
     tf.estimator.train_and_evaluate(
