@@ -96,6 +96,67 @@ def crnn(features, lstm_size, num_classes, is_training=True):
     return logits
 
 
+def compute_sparse_tensor_accuracy(preds, labels):
+    """compute batch accuracy
+        args: preds, labels both are sparse tensor
+    """
+    # reset shape to max ,preds.dense_shape[1] and labels.dense_shape[1]
+    # default_value set to -1
+    with tf.name_scope(None, 'compute_accuracy'):
+
+        batch_size = preds.dense_shape[0]
+        preds_length = preds.dense_shape[1]
+        labels_length = labels.dense_shape[1]
+        # [batch_p, preds_length] = preds.get_shape()
+        # [batch_l, labels_length] = labels.get_shape()
+
+        max_length = tf.maximum(preds_length, labels_length)
+        # reset 为统一尺寸的矩阵，方便后续比较
+        pad_preds = tf.sparse_reset_shape(preds, [batch_size, max_length])
+        pad_labels = tf.sparse_reset_shape(labels, [batch_size, max_length])
+
+        # 函数默认置为0，故手动default value set to negative integer, 为了区分label 0
+        pad_preds = tf.sparse_tensor_to_dense(pad_preds, default_value=-1)
+        pad_preds = tf.to_int32(pad_preds)
+        pad_labels = tf.sparse_tensor_to_dense(pad_labels, default_value=-1)
+
+        # sparse value mask，也即有效的位置掩膜
+        preds_mask = pad_preds > -1
+        labels_mask = pad_labels > -1
+        # gt length ，用于统计单个字母正确率
+        # gt_length = tf.reduce_sum(tf.cast(labels_mask, dtype=tf.int32), axis=1)
+
+        # 每一个样本需要比较的掩膜
+        mask = tf.logical_or(preds_mask, labels_mask)
+        # 每一个样本需要比较的有效长度。每个样本的每个time都为正确，则判断这个样本为正确
+        compare_length = tf.reduce_sum(tf.cast(mask, dtype=tf.int32), axis=1)
+
+        accuracy = tf.logical_and(
+            tf.equal(pad_preds, pad_labels),
+            mask,
+        )
+        accuracy = tf.reduce_sum(tf.cast(accuracy, dtype=tf.int32), axis=1)
+
+        # 全部字符匹配的正确率
+        acc1 = tf.reduce_mean(
+            tf.to_float(tf.equal(accuracy, compare_length)),
+            name='acc1',
+        )
+
+        # 单个字符的匹配所在位置的正确率
+        acc2 = tf.reduce_mean(
+            tf.div(
+                tf.to_float(accuracy),
+                tf.to_float(compare_length)
+            ),
+            name='acc2',
+        )
+    tf.summary.scalar(name='acc1', tensor=acc1)
+    tf.summary.scalar(name='acc2', tensor=acc2)
+
+    return acc1, acc2
+
+
 def model_fn(features, labels, mode, params):
     """model function build
         args: features, labels, mode, params 
@@ -129,13 +190,11 @@ def model_fn(features, labels, mode, params):
                 ),
                 name='seq_dist',
             )
-        preds = tf.sparse_tensor_to_dense(decoded[0], name='prediction')
-        gt_labels = tf.sparse_tensor_to_dense(
-            labels, name='Ground_Truth')
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         """Prediction
         """
+        preds = tf.sparse_tensor_to_dense(decoded[0], default_value=-1)
         predictions = {
             'preds': preds,
             'preds_seq_dist': sequence_dist,
@@ -156,13 +215,20 @@ def model_fn(features, labels, mode, params):
 
     tf.summary.scalar(name='Seq_Dist', tensor=sequence_dist)
 
+    acc1, acc2 = compute_sparse_tensor_accuracy(decoded[0], labels)
     if mode == tf.estimator.ModeKeys.EVAL:
         """Evaluation
         """
+        # metrics = {
+        #     'acc1': (acc1, None),
+        #     'acc2': (acc2, None),
+        # }
         eval_loghook = tf.train.LoggingTensorHook(
             tensors={
                 'loss': loss,
                 'Seq_Dist': sequence_dist,
+                'acc1': acc1,
+                'acc2': acc2,
             },
             every_n_iter=log_every_n_steps,
         )
@@ -196,22 +262,22 @@ def model_fn(features, labels, mode, params):
         global_step=global_step
     )
 
-    globalhook = tf.train.StepCounterHook(
-        every_n_steps=log_every_n_steps,
-    )
+    # globalhook = tf.train.StepCounterHook(
+    #     every_n_steps=log_every_n_steps,
+    # )
     loghook = tf.train.LoggingTensorHook(
         tensors={
-            # 'global_step': global_step,
-            # 'loss': loss,
             'Seq_Dist': sequence_dist,
             'LR': learning_rate,
+            'acc1': acc1,
+            'acc2': acc2,
         },
         every_n_iter=log_every_n_steps,
     )
     return tf.estimator.EstimatorSpec(mode,
                                       loss=loss,
                                       train_op=train_op,
-                                      training_hooks=[globalhook, loghook])
+                                      training_hooks=[loghook])
 
 
 # CRNN estimator

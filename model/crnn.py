@@ -8,7 +8,7 @@ import tensorflow as tf
 from model.image_embedding import crnn_base
 
 
-slim = tf.contrib.slim
+slim = tf.contrib.slim  # pylint: disable=E1101
 
 
 class CRNN(object):

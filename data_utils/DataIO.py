@@ -304,7 +304,7 @@ class DataWriter(object):
         def _get_output_filename(output_dir, name, split_name, idx):
             return '%s/%s_%s_%03d.tfrecord' % (output_dir, name, split_name, idx)
 
-        def _to_example(image_meta):
+        def _to_example(image_meta): 
 
             with tf.gfile.FastGFile(image_meta[0], "rb") as f:
                 encoded_image = f.read()

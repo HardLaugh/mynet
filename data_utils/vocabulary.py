@@ -53,7 +53,8 @@ class Vocabulary(object):
     def _to_string(self, v):
         strs = ''
         for s in v:
-            strs += self.id_to_letter(s)
+            if s > -1: #sparse tensor default value set to negative integer
+                strs += self.id_to_letter(s)
         return strs
 
 

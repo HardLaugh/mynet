@@ -30,14 +30,16 @@ input_queue = DataReader(DATASET_DIR, FP,
 
 with tf.name_scope(None, 'input_queue'):
     input_images, input_labels = input_queue.read()
-input_labels = tf.sparse_tensor_to_dense(input_labels)
+decoded_labels = tf.sparse_tensor_to_dense(input_labels)
 vocab = Vocabulary()
-#%%
+# %%
 with tf.train.MonitoredTrainingSession(config=session_config) as sess:
 
     for i in range(1):
 
-        images, labels = sess.run([input_images, input_labels])
+        images, labels, sparse_labels = sess.run(
+            [input_images, decoded_labels, input_labels])
+        print(sparse_labels)
         print(vocab._to_string(labels[0]))
         plt.figure(1)
         plt.imshow(np.uint8(images[0, :, :, :]))
