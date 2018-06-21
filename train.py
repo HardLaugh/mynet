@@ -12,8 +12,7 @@ from model import configuration, crnn
 from data_utils.DataIO import DataReader
 from data_utils.vocabulary import Vocabulary, compute_acuracy
 
-slim = tf.contrib.slim
-
+slim = tf.contrib.slim  # pylint: disable=E1101
 
 
 tf.flags.DEFINE_string(
@@ -75,12 +74,10 @@ def main(_):
 
     training_config = configuration.TrainingConfig()
     print(FLAGS.learning_rate)
-    training_config.initial_learning_rate=FLAGS.learning_rate
-
+    training_config.initial_learning_rate = FLAGS.learning_rate
 
     sequence_length = model_config.sequence_length
     batch_size = FLAGS.batch_size
-    
 
     # summaries_dir = FLAGS.summaries_dir
     # if not tf.gfile.IsDirectory(summaries_dir):
@@ -96,7 +93,6 @@ def main(_):
     input_queue = DataReader(FLAGS.dataset_dir, FLAGS.file_pattern,
                              model_config, batch_size=batch_size)
 
-
     g = tf.Graph()
     with g.as_default():
         # 数据队列
@@ -106,7 +102,7 @@ def main(_):
         # 模型建立
         model = crnn.CRNN(256, model_config.num_classes, 'train')
         logits = model.build(input_images)
-        #为避免Dataset.batch的不确定提供，改为动态获取batch_size
+        # 为避免Dataset.batch的不确定提供，改为动态获取batch_size
         dyn_batch_size = tf.shape(logits)[1]
 
         with tf.name_scope(None, 'loss'):
@@ -151,7 +147,6 @@ def main(_):
             collections=[tf.GraphKeys.GLOBAL_STEP,
                          tf.GraphKeys.GLOBAL_VARIABLES]
         )
-        
 
         start_learning_rate = training_config.initial_learning_rate
         learning_rate = tf.train.exponential_decay(
@@ -194,7 +189,7 @@ def main(_):
             'global_step': global_step,
             'loss': loss,
             'Seq_Dist': sequence_dist,
-            'LR':learning_rate,
+            'LR': learning_rate,
             # 'accurays':accurays,
         }
         loghook = tf.train.LoggingTensorHook(
@@ -215,20 +210,21 @@ def main(_):
         #         learning_rate=learning_rate).minimize(loss=total_loss, global_step=global_step)
 
         optimizer = tf.train.AdadeltaOptimizer(learning_rate=learning_rate)
-        train_op = tf.contrib.training.create_train_op(
+        train_op = tf.contrib.training.create_train_op(  # pylint: disable=E1101
             total_loss=total_loss,
             optimizer=optimizer,
             global_step=global_step
         )
         # train_op = tf.group([optimizer, total_loss, sequence_dist])
         with tf.train.MonitoredTrainingSession(
-            checkpoint_dir=FLAGS.train_checkpoints,
-            hooks=[globalhook, loghook, stophook],
-            save_checkpoint_secs=180,
-            save_summaries_steps=100,
-            config=session_config) as sess:
+                checkpoint_dir=FLAGS.train_checkpoints,
+                hooks=[globalhook, loghook, stophook],
+                save_checkpoint_secs=180,
+                save_summaries_steps=100,
+                config=session_config) as sess:
             while not sess.should_stop():
-                oloss, opreds, ogt_labels = sess.run([train_op, preds, gt_labels])
+                oloss, opreds, ogt_labels = sess.run(
+                    [train_op, preds, gt_labels])
                 accuray = compute_acuracy(opreds, ogt_labels)
                 print("accuracy: %9f" % (accuray))
 

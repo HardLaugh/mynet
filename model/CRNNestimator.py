@@ -5,9 +5,9 @@ from __future__ import print_function
 import sys
 import tensorflow as tf
 from model.image_embedding import crnn_base
-from tensorflow.python.estimator import estimator
+from tensorflow.python.estimator import estimator  # pylint: disable=E0611
 
-slim = tf.contrib.slim
+slim = tf.contrib.slim  # pylint: disable=E1101
 
 
 def embedding_and_squeeze(images, is_training):
@@ -30,19 +30,19 @@ def Bilstm(image_embeddings, lstm_size, num_classes, is_training):
     """bi_lstm层
     """
     def lstm_cell(lstm_size):
-        return tf.contrib.rnn.BasicLSTMCell(lstm_size)
+        return tf.contrib.rnn.BasicLSTMCell(lstm_size)  # pylint: disable=E1101
 
     fw_cell_list = [lstm_cell(nh)
                     for nh in [lstm_size, lstm_size]]
 
     bw_cell_list = [lstm_cell(nh)
                     for nh in [lstm_size, lstm_size]]
-    lstm_outputs, _, _ = tf.contrib.rnn.stack_bidirectional_dynamic_rnn(
+    lstm_outputs, _, _ = tf.contrib.rnn.stack_bidirectional_dynamic_rnn(  # pylint: disable=E1101
         cells_fw=fw_cell_list,
         cells_bw=bw_cell_list,
         inputs=image_embeddings,
         dtype=tf.float32
-    )  # [batch,25, 256*2]
+    )
 
     lstm_outputs = tf.layers.dropout(
         inputs=lstm_outputs,
@@ -97,7 +97,9 @@ def crnn(features, lstm_size, num_classes, is_training=True):
 
 
 def model_fn(features, labels, mode, params):
-
+    """model function build
+        args: features, labels, mode, params 
+    """
     def is_training():
         return mode == tf.estimator.ModeKeys.TRAIN
 
@@ -106,13 +108,12 @@ def model_fn(features, labels, mode, params):
     sequence_length = params['ModelConfig'].sequence_length
     log_every_n_steps = params['log_every_n_steps']
 
-
     # 模型建立
     logits = crnn(features,
                   lstm_size,
                   num_classes,
                   is_training=is_training())
-    
+
     dyn_batch_size = tf.shape(logits)[1]
     with tf.name_scope(None, 'decoder'):
         decoded, _ = tf.nn.ctc_beam_search_decoder(
@@ -152,21 +153,17 @@ def model_fn(features, labels, mode, params):
             ),
             name='compute_loss',
         )
-        # 不再需要手动添加到loss
-        # tf.losses.add_loss(loss)
-        # total_loss = tf.losses.get_total_loss(False)
 
     tf.summary.scalar(name='Seq_Dist', tensor=sequence_dist)
 
     if mode == tf.estimator.ModeKeys.EVAL:
         """Evaluation
         """
-        eval_tensors_print = {
-            'loss': loss,
-            'Seq_Dist': sequence_dist,
-        }
         eval_loghook = tf.train.LoggingTensorHook(
-            tensors=eval_tensors_print,
+            tensors={
+                'loss': loss,
+                'Seq_Dist': sequence_dist,
+            },
             every_n_iter=log_every_n_steps,
         )
         return tf.estimator.EstimatorSpec(
@@ -175,7 +172,7 @@ def model_fn(features, labels, mode, params):
     # Create training op.
     assert mode == tf.estimator.ModeKeys.TRAIN
     # note:: 不再需要手动创建global_step
-    global_step = tf.train.get_global_step()
+    global_step = tf.train.get_or_create_global_step()
     assert global_step.graph == tf.get_default_graph()
 
     start_learning_rate = params['TrainingConfig'].initial_learning_rate
@@ -193,7 +190,7 @@ def model_fn(features, labels, mode, params):
     tf.summary.scalar(name='learning_rate', tensor=learning_rate)
 
     optimizer = tf.train.AdadeltaOptimizer(learning_rate=learning_rate)
-    train_op = tf.contrib.training.create_train_op(
+    train_op = tf.contrib.training.create_train_op(  # pylint: disable=E1101
         total_loss=loss,
         optimizer=optimizer,
         global_step=global_step
@@ -218,11 +215,11 @@ def model_fn(features, labels, mode, params):
 
 
 # CRNN estimator
-class CRNN_test(estimator.Estimator):
+class CRNNestimator(estimator.Estimator):
     """CRNN estimator, for train, eval and predict
     """
 
-    def __init__(self, model_dir, model_config, train_config, FLAGS, config=None):
+    def __init__(self, model_config, train_config, FLAGS, config=None):
 
         params = {'ModelConfig': model_config,
                   'TrainingConfig': train_config,
@@ -233,29 +230,6 @@ class CRNN_test(estimator.Estimator):
 
             return model_fn(features, labels, mode, params)
 
-        super(CRNN_test, self).__init__(
-            model_fn=_model_fn, model_dir=model_dir, config=config,
+        super(CRNNestimator, self).__init__(
+            model_fn=_model_fn, model_dir=None, config=config,
             params=params, warm_start_from=None)
-
-# CRNN estimator
-# class CRNN_test(object):
-#     """CRNN estimator, for train, eval and predict
-#     """
-
-#     def __init__(self, model_dir, model_config, train_config, FLAGS, config=None):
-
-#         self.params = {'ModelConfig': model_config,
-#                        'TrainingConfig': train_config,
-#                        'log_every_n_steps': FLAGS.log_every_n_steps,
-#                        }
-#         self.model_dir = model_dir
-#         self.config = config
-
-#     def build(self):
-#         params = self.params
-
-#         def _model_fn(features, labels, mode, params):
-#             return crnn_fn(features, labels, mode, params)
-
-#         return tf.estimator.Estimator(model_fn=_model_fn, model_dir=self.model_dir, config=self.config,
-#                                       params=params, warm_start_from=None)

@@ -7,7 +7,7 @@ from __future__ import print_function
 import sys
 import tensorflow as tf
 
-slim = tf.contrib.slim
+slim = tf.contrib.slim # pylint: disable=E1101
 
 
 def crnn_base(inputs,

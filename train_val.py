@@ -8,11 +8,12 @@ import sys
 import tensorflow as tf
 import numpy as np
 
-from model import configuration, crnn, CRNNestimator
+from model import configuration, crnn, CRNNestimator # pylint: disable=protected-access
+from model.CRNNestimator import CRNNestimator # pylint: disable=protected-access
 from data_utils.DataIO import DataReader
 from data_utils.vocabulary import Vocabulary, compute_acuracy
 
-slim = tf.contrib.slim
+slim = tf.contrib.slim # pylint: disable=E1101
 
 
 tf.flags.DEFINE_string(
@@ -21,8 +22,12 @@ tf.flags.DEFINE_string(
 )
 
 tf.flags.DEFINE_string(
-    "file_pattern", "",
+    "file_pattern", "ocr_train_*.tfrecord",
     "File pattern."
+)
+tf.flags.DEFINE_string(
+    "eval_file_pattern", "ocr_val_*.tfrecord",
+    "eval_File pattern."
 )
 
 tf.flags.DEFINE_string(
@@ -48,6 +53,14 @@ tf.flags.DEFINE_integer(
 tf.flags.DEFINE_integer(
     "log_every_n_steps", 100,
     "Frequency at which loss and global step are logged."
+)
+tf.flags.DEFINE_integer(
+    "eval_steps", 30,
+    "per eval step."
+)
+tf.flags.DEFINE_integer(
+    "throttle_secs", 200,
+    "next time eval should after throttle_secs"
 )
 tf.flags.DEFINE_float(
     'gpu_memory_fraction', 0.7,
@@ -83,7 +96,9 @@ def main(_):
     training_config = configuration.TrainingConfig()
 
     gpu_options = tf.GPUOptions(
-        per_process_gpu_memory_fraction=FLAGS.gpu_memory_fraction)
+        per_process_gpu_memory_fraction=FLAGS.gpu_memory_fraction,
+        allow_growth=True
+    )
     session_config = tf.ConfigProto(log_device_placement=False,
                                     gpu_options=gpu_options)
     config = tf.estimator.RunConfig(
@@ -95,8 +110,7 @@ def main(_):
         log_step_count_steps=FLAGS.log_every_n_steps,
     )
 
-    estimator = CRNNestimator.CRNN_test(
-        model_dir=FLAGS.train_checkpoints,
+    estimator = CRNNestimator(
         model_config=model_config,
         train_config=training_config,
         FLAGS=FLAGS,
@@ -107,15 +121,16 @@ def main(_):
     train_spec = tf.estimator.TrainSpec(
         input_fn=lambda: input_fn(FLAGS.dataset_dir, FLAGS.file_pattern,
                                   model_config, batch_size=FLAGS.batch_size),
-        max_steps=FLAGS.number_of_steps,#训练的最大次数
+        max_steps=FLAGS.number_of_steps,  # 训练的最大次数
         hooks=None,
     )
 
     eval_spec = tf.estimator.EvalSpec(
-        input_fn=lambda: input_fn(FLAGS.dataset_dir, 'ocr_val_*.tfrecord',
-                                  model_config, batch_size=64),
-        steps=30,#每运行一次eval会触发30次batch_size
-        throttle_secs=200,#每20sec触发一次eval
+        input_fn=lambda: input_fn(FLAGS.dataset_dir, FLAGS.eval_file_pattern,
+                                  model_config, batch_size=FLAGS.batch_size),
+        steps=FLAGS.eval_steps,  # 每运行一次eval会触发30次batch_size
+        throttle_secs=FLAGS.throttle_secs,  # 每20sec触发一次eval
+        hooks=None,
     )
 
     tf.estimator.train_and_evaluate(
