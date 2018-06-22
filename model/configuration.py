@@ -8,7 +8,7 @@ class ModelConfig(object):
     def __init__(self):
 
         self.num_classes = 37
-        self.sequence_length = 75
+        self.sequence_length = 74
 
         self.num_preprocess_threads = 4
 
@@ -33,7 +33,7 @@ class TrainingConfig(object):
         self.optimizer = "adadelta"
 
         self.initial_learning_rate = 0.01
-        self.learning_rate_decay_factor = 0.01
+        self.learning_rate_decay_factor = 0.1
         self.learning_decay_steps = 40000
 
         self.clip_gradients = None

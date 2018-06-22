@@ -8,12 +8,12 @@ import sys
 import tensorflow as tf
 import numpy as np
 
-from model import configuration, crnn, CRNNestimator # pylint: disable=protected-access
-from model.CRNNestimator import CRNNestimator # pylint: disable=protected-access
+from model import configuration, crnn, CRNNestimator  # pylint: disable=protected-access
+from model.CRNNestimator import CRNNestimator  # pylint: disable=protected-access
 from data_utils.DataIO import DataReader
 from data_utils.vocabulary import Vocabulary, compute_acuracy
 
-slim = tf.contrib.slim # pylint: disable=E1101
+slim = tf.contrib.slim  # pylint: disable=E1101
 
 
 tf.flags.DEFINE_string(
@@ -78,7 +78,7 @@ def input_fn(dataset_dir, file_pattern, model_config, batch_size, mode='train'):
     """训练集输入函数
     """
     queue = DataReader(dataset_dir, file_pattern,
-                       model_config, batch_size=batch_size)
+                       model_config, batch_size=batch_size, mode=mode)
     with tf.name_scope(None, 'input_queue_'+mode):
         return queue.input_fn()
 
@@ -94,6 +94,7 @@ def main(_):
     model_config = configuration.ModelConfig()
 
     training_config = configuration.TrainingConfig()
+    training_config.initial_learning_rate = FLAGS.learning_rate
 
     gpu_options = tf.GPUOptions(
         per_process_gpu_memory_fraction=FLAGS.gpu_memory_fraction,
@@ -127,7 +128,7 @@ def main(_):
 
     eval_spec = tf.estimator.EvalSpec(
         input_fn=lambda: input_fn(FLAGS.dataset_dir, FLAGS.eval_file_pattern,
-                                  model_config, batch_size=FLAGS.batch_size),
+                                  model_config, batch_size=FLAGS.batch_size, mode='eval'),
         steps=FLAGS.eval_steps,  # 每运行一次eval会触发30次batch_size
         throttle_secs=FLAGS.throttle_secs,  # 每20sec触发一次eval
         hooks=None,

@@ -166,7 +166,7 @@ def model_fn(features, labels, mode, params):
 
     num_classes = params['ModelConfig'].num_classes
     lstm_size = params['ModelConfig'].num_lstm_units
-    sequence_length = params['ModelConfig'].sequence_length
+    # sequence_length = params['ModelConfig'].sequence_length
     log_every_n_steps = params['log_every_n_steps']
 
     # 模型建立
@@ -176,6 +176,7 @@ def model_fn(features, labels, mode, params):
                   is_training=is_training())
 
     dyn_batch_size = tf.shape(logits)[1]
+    sequence_length = tf.shape(logits)[0]
     with tf.name_scope(None, 'decoder'):
         decoded, _ = tf.nn.ctc_beam_search_decoder(
             logits,
