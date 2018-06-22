@@ -183,14 +183,6 @@ def model_fn(features, labels, mode, params):
             sequence_length*tf.ones(dyn_batch_size, dtype=tf.int32),
             merge_repeated=False,
         )
-        with tf.name_scope(None, 'acurracy'):
-            sequence_dist = tf.reduce_mean(
-                tf.edit_distance(
-                    tf.cast(decoded[0], tf.int32),
-                    labels
-                ),
-                name='seq_dist',
-            )
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         """Prediction
@@ -198,9 +190,18 @@ def model_fn(features, labels, mode, params):
         preds = tf.sparse_tensor_to_dense(decoded[0], default_value=-1)
         predictions = {
             'preds': preds,
-            'preds_seq_dist': sequence_dist,
+            # 'preds_seq_dist': sequence_dist,
         }
         return tf.estimator.EstimatorSpec(mode, predictions=predictions)
+        
+    with tf.name_scope(None, 'acurracy'):
+            sequence_dist = tf.reduce_mean(
+                tf.edit_distance(
+                    tf.cast(decoded[0], tf.int32),
+                    labels
+                ),
+                name='seq_dist',
+            )
 
     # compute loss
     with tf.name_scope(None, 'loss'):
@@ -286,11 +287,11 @@ class CRNNestimator(estimator.Estimator):
     """CRNN estimator, for train, eval and predict
     """
 
-    def __init__(self, model_config, train_config, FLAGS, config=None):
+    def __init__(self, model_dir, model_config, train_config, log_every_n_steps, config=None):
 
         params = {'ModelConfig': model_config,
                   'TrainingConfig': train_config,
-                  'log_every_n_steps': FLAGS.log_every_n_steps,
+                  'log_every_n_steps': log_every_n_steps,
                   }
 
         def _model_fn(features, labels, mode, params):
@@ -298,5 +299,5 @@ class CRNNestimator(estimator.Estimator):
             return model_fn(features, labels, mode, params)
 
         super(CRNNestimator, self).__init__(
-            model_fn=_model_fn, model_dir=None, config=config,
+            model_fn=_model_fn, model_dir=model_dir, config=config,
             params=params, warm_start_from=None)

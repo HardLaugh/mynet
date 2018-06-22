@@ -13,7 +13,7 @@ class ModelConfig(object):
         self.num_preprocess_threads = 4
 
         self.image_height = 32
-        self.image_width = 300
+        self.image_width = 600
 
         self.initializer_scale = 0.08
 
@@ -32,9 +32,9 @@ class TrainingConfig(object):
 
         self.optimizer = "adadelta"
 
-        self.initial_learning_rate = 0.01
+        self.initial_learning_rate = 0.1
         self.learning_rate_decay_factor = 0.1
-        self.learning_decay_steps = 40000
+        self.learning_decay_steps = 10000
 
         self.clip_gradients = None
 

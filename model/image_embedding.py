@@ -45,5 +45,5 @@ def crnn_base(inputs,
                     
                     net = slim.conv2d(net, 512, [2, 2], 1, padding='VALID', activation_fn=None, scope='conv7')
                     net = slim.batch_norm(net, is_training=is_training, scope='Bn3')
-
+                    
     return net

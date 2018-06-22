@@ -112,9 +112,10 @@ def main(_):
     )
 
     estimator = CRNNestimator(
+        model_dir=None,
         model_config=model_config,
         train_config=training_config,
-        FLAGS=FLAGS,
+        log_every_n_steps=FLAGS.log_every_n_steps,
         config=config,
     )
 
