@@ -14,7 +14,7 @@ python train_val.py \
     --train_checkpoints=${TC} \
     --summaries_dir=${SD} \
     --log_every_n_steps=20 \
-    --number_of_steps=10000 \
-    --batch_size=16 \
+    --number_of_steps=70000 \
+    --batch_size=32 \
     --learning_rate=0.1 \
     --throttle_secs=600

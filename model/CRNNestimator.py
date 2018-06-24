@@ -174,7 +174,7 @@ def model_fn(features, labels, mode, params):
                   lstm_size,
                   num_classes,
                   is_training=is_training())
-
+ 
     dyn_batch_size = tf.shape(logits)[1]
     sequence_length = tf.shape(logits)[0]
     with tf.name_scope(None, 'decoder'):
@@ -187,8 +187,12 @@ def model_fn(features, labels, mode, params):
     if mode == tf.estimator.ModeKeys.PREDICT:
         """Prediction
         """
+
+        soft = tf.transpose(tf.argmax(tf.nn.softmax(logits, axis=2), axis=2), (1, 0))
+
         preds = tf.sparse_tensor_to_dense(decoded[0], default_value=-1)
         predictions = {
+            'soft': soft,
             'preds': preds,
             # 'preds_seq_dist': sequence_dist,
         }

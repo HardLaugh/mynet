@@ -8,12 +8,12 @@ class ModelConfig(object):
     def __init__(self):
 
         self.num_classes = 37
-        self.sequence_length = 74
+        self.sequence_length = 53
 
         self.num_preprocess_threads = 4
 
         self.image_height = 32
-        self.image_width = 600
+        self.image_width = 300
 
         self.initializer_scale = 0.08
 
@@ -34,7 +34,7 @@ class TrainingConfig(object):
 
         self.initial_learning_rate = 0.1
         self.learning_rate_decay_factor = 0.1
-        self.learning_decay_steps = 10000
+        self.learning_decay_steps = 40002
 
         self.clip_gradients = None
 

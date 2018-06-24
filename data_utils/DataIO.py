@@ -221,7 +221,7 @@ class DataReader(object):
             dataset = dataset.map(_process_image)
 
             # 如果数据集N不是batch_size的倍数，最后的批次将会是N%batch_size
-            dataset = dataset.shuffle(256).repeat().batch(batch_size)
+            dataset = dataset.shuffle(1024).repeat().batch(batch_size)
 
             return dataset.make_one_shot_iterator().get_next()
 

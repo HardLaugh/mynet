@@ -24,13 +24,15 @@ def crnn_base(inputs,
                             padding='SAME'):
                 with slim.arg_scope([slim.conv2d, slim.batch_norm],
                             activation_fn=tf.nn.relu):
+                    net = slim.conv2d(inputs, 64, [3, 3], 1, scope='conv0')
+                    net = slim.max_pool2d(net, [2, 2], 2, scope='pool0')
 
-                    net = slim.conv2d(inputs, 64, [3, 3], 1, scope='conv1')
+                    net = slim.conv2d(net, 64, [3, 3], 1, scope='conv1')
                     net = slim.max_pool2d(net, [2, 2], 2, scope='pool1')
-
+                    
                     net = slim.conv2d(net, 128, [3, 3], 1, scope='conv2')
                     net = slim.max_pool2d(net, [2, 2], 2, scope='pool2')
-
+                    
                     net = slim.conv2d(net, 256, [3, 3], 1, activation_fn=None, scope='conv3')
                     net = slim.batch_norm(net, is_training=is_training, scope='Bn1')
                     net = slim.conv2d(net, 256, [3, 3], 1, scope='conv4')
@@ -42,7 +44,7 @@ def crnn_base(inputs,
                     net = slim.conv2d(net, 512, [3, 3], 1, scope='conv6')
 
                     net = slim.max_pool2d(net, [2, 2], stride=[2, 1], scope='pool4')
-                    
+
                     net = slim.conv2d(net, 512, [2, 2], 1, padding='VALID', activation_fn=None, scope='conv7')
                     net = slim.batch_norm(net, is_training=is_training, scope='Bn3')
                     
